@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinOps for AI — Mercari</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .tab-btn { border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .tab-btn.active { border-bottom-color: #1D4ED8; color: #1D4ED8; font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+    .badge-active    { background: #D1FAE5; color: #065F46; }
+    .badge-piloting  { background: #FEF3C7; color: #92400E; }
+    .badge-pending   { background: #F3F4F6; color: #6B7280; }
+    .badge-bq        { background: #DBEAFE; color: #1E40AF; }
+    .badge-invoice   { background: #FEF3C7; color: #92400E; }
+    .badge-tbd       { background: #F3F4F6; color: #9CA3AF; }
+    .var-under { color: #059669; }
+    .var-over  { color: #DC2626; }
+    .var-flat  { color: #6B7280; }
+    .progress-track { height: 5px; border-radius: 3px; background: #E5E7EB; display: inline-block; width: 80px; vertical-align: middle; }
+    .progress-fill  { height: 5px; border-radius: 3px; }
+    .card { background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; }
+    th { font-weight: 500; color: #6B7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    tr:last-child td { border-bottom: none; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-900">
+
+  <!-- ═══ HEADER ═══ -->
+  <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-blue-700 flex items-center justify-center text-white font-bold text-sm tracking-tight">M</div>
+      <div>
+        <h1 class="font-semibold text-gray-900 leading-none">FinOps for AI</h1>
+        <p class="text-xs text-gray-400 mt-0.5">Mercari · FinOps Team</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2 text-sm">
+        <button onclick="shiftPeriod(-1)" class="text-gray-400 hover:text-blue-600 font-bold">‹</button>
+        <span id="period-label" class="font-medium text-gray-700 w-20 text-center text-sm">Apr 2026</span>
+        <button onclick="shiftPeriod(1)" class="text-gray-200 cursor-not-allowed font-bold">›</button>
+      </div>
+      <span class="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-semibold tracking-wide">PROTOTYPE · MOCK DATA</span>
+    </div>
+  </header>
+
+  <!-- ═══ TABS ═══ -->
+  <nav class="bg-white border-b border-gray-200 px-8">
+    <div class="flex gap-6">
+      <button class="tab-btn active py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="dashboard">Overview</button>
+      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="registry">Component Registry</button>
+      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="bva">Budget vs Actuals</button>
+      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="waste">AI Waste</button>
+      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="demand">Team Demand</button>
+      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="health">Data Health</button>
+      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="roi">Value &amp; RoI</button>
+      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="estimator">Cost Estimator</button>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-8 py-7 space-y-5">
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- TAB: OVERVIEW DASHBOARD               -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tab-dashboard" class="tab-content active space-y-5">
+
+      <!-- Summary cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Monthly Budget</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">$52,733</p>
+          <p class="text-xs text-gray-400 mt-1">9 of 11 tools · FY2026</p>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Actual Spend</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">$49,053</p>
+          <p class="text-xs text-emerald-600 mt-1 font-medium">▼ $3,680 under budget</p>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Budget Utilization</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">93.0%</p>
+          <div class="mt-2 h-1.5 bg-gray-100 rounded-full">
+            <div class="h-1.5 bg-blue-500 rounded-full" style="width:93%"></div>
+          </div>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">AI Tools in Scope</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">11</p>
+          <p class="text-xs text-amber-600 mt-1 font-medium">⚠ 2 with missing data</p>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="card">
+          <h3 class="font-semibold text-gray-900 text-sm">Spend by Category</h3>
+          <p class="text-xs text-gray-400 mt-0.5 mb-4">Apr 2026 · Actual spend</p>
+          <div style="height:220px;position:relative;">
+            <canvas id="catChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold text-gray-900 text-sm">Budget vs Actual · Top Tools</h3>
+          <p class="text-xs text-gray-400 mt-0.5 mb-4">Apr 2026 · USD</p>
+          <div style="height:220px;position:relative;">
+            <canvas id="bvaBarChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trend chart -->
+      <div class="card">
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="font-semibold text-gray-900 text-sm">Monthly AI Spend Trend</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Nov 2025 – Apr 2026 · All AI components combined</p>
+          </div>
+          <div class="text-right">
+            <p class="text-xs text-gray-400">6-month growth</p>
+            <p class="text-sm font-semibold text-emerald-600">+16.8%</p>
+          </div>
+        </div>
+        <div style="height:180px;margin-top:16px;position:relative;">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Insights -->
+      <div class="card">
+        <h3 class="font-semibold text-gray-900 text-sm mb-4">Key Insights · Apr 2026</h3>
+        <div class="space-y-3">
+          <div class="flex gap-3 text-sm">
+            <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
+            <p class="text-gray-600"><strong class="text-gray-900">Vertex AI</strong> is running 17% under budget ($12.4K vs $15K budgeted). Investigate: lower usage or optimistic forecast?</p>
+          </div>
+          <div class="flex gap-3 text-sm">
+            <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
+            <p class="text-gray-600"><strong class="text-gray-900">Devin AI</strong> pilot is 25% under budget. Confirm if adoption is lower than planned, or if billing hasn't landed yet.</p>
+          </div>
+          <div class="flex gap-3 text-sm">
+            <div class="w-2 h-2 rounded-full bg-amber-500 mt-1.5 flex-shrink-0"></div>
+            <p class="text-gray-600"><strong class="text-gray-900">Genspark</strong> — actual spend data is missing. Owner team unconfirmed. Action required before next report.</p>
+          </div>
+          <div class="flex gap-3 text-sm">
+            <div class="w-2 h-2 rounded-full bg-amber-500 mt-1.5 flex-shrink-0"></div>
+            <p class="text-gray-600"><strong class="text-gray-900">Enterprise Search</strong> — vendor unconfirmed (Gemini vs Glean). Budget and actuals are both unknown. Escalate to Corporate IT.</p>
+          </div>
+          <div class="flex gap-3 text-sm">
+            <div class="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+            <p class="text-gray-600">Total AI spend has grown <strong class="text-gray-900">+16.8%</strong> over 6 months (Nov 2025 → Apr 2026). Annualized run rate: ~<strong class="text-gray-900">$589K / year</strong>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- TAB: COMPONENT REGISTRY              -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tab-registry" class="tab-content space-y-4">
+      <div class="card flex flex-wrap gap-3 items-center p-4">
+        <input id="reg-search" type="text" placeholder="Search components, provider, team…"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 min-w-48 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        <select id="reg-cat" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">All Categories</option>
+          <option>Cloud AI</option>
+          <option>Cloud AI / Internal Platform</option>
+          <option>SaaS AI - Developer Tool</option>
+          <option>SaaS AI - Productivity</option>
+          <option>SaaS AI - Automation</option>
+          <option>SaaS AI - Search</option>
+        </select>
+        <select id="reg-status" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">All Statuses</option>
+          <option>Active</option>
+          <option>Piloting</option>
+          <option>Pending Confirmation</option>
+        </select>
+        <span id="reg-count" class="text-xs text-gray-400 ml-auto">11 components</span>
+      </div>
+
+      <div class="card p-0 overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left px-5 py-3">Component</th>
+              <th class="text-left px-4 py-3">Category</th>
+              <th class="text-left px-4 py-3">Provider</th>
+              <th class="text-left px-4 py-3">Owner Team</th>
+              <th class="text-left px-4 py-3">Billing</th>
+              <th class="text-left px-4 py-3">Data Source</th>
+              <th class="text-left px-4 py-3">Status</th>
+              <th class="text-right px-5 py-3">Mo. Budget</th>
+            </tr>
+          </thead>
+          <tbody id="reg-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- TAB: BUDGET vs ACTUALS               -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tab-bva" class="tab-content space-y-4">
+      <div class="card p-0 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 class="font-semibold text-gray-900 text-sm">Budget vs Actuals</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Apr 2026 · Monthly view · USD</p>
+          </div>
+          <div class="flex gap-2">
+            <span class="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full">● Under budget</span>
+            <span class="text-xs px-2 py-1 bg-red-50 text-red-700 rounded-full">● Over budget</span>
+            <span class="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded-full">● No data</span>
+          </div>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left px-5 py-3">Component</th>
+              <th class="text-left px-4 py-3">Category</th>
+              <th class="text-right px-4 py-3">Budget</th>
+              <th class="text-right px-4 py-3">Actual</th>
+              <th class="text-right px-4 py-3">Variance $</th>
+              <th class="text-right px-4 py-3">Variance %</th>
+              <th class="text-left px-5 py-3">Utilization</th>
+            </tr>
+          </thead>
+          <tbody id="bva-body"></tbody>
+          <tfoot class="bg-gray-50 border-t-2 border-gray-300">
+            <tr>
+              <td class="px-5 py-3 font-semibold text-gray-900" colspan="2">Total (9 tools with data)</td>
+              <td class="px-4 py-3 text-right font-semibold">$52,733</td>
+              <td class="px-4 py-3 text-right font-semibold">$49,053</td>
+              <td class="px-4 py-3 text-right font-semibold text-emerald-600">-$3,680</td>
+              <td class="px-4 py-3 text-right font-semibold text-emerald-600">-7.0%</td>
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="progress-track"><div class="progress-fill bg-emerald-500" style="width:93%"></div></div>
+                  <span class="text-xs text-gray-500">93%</span>
+                </div>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- TAB: AI WASTE                        -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tab-waste" class="tab-content space-y-5">
+
+      <!-- Summary cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card" style="background:#FEF2F2;border-color:#FECACA;">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Est. Monthly Waste</p>
+          <p class="text-3xl font-bold mt-2 text-red-500">$6,200</p>
+          <p class="text-xs text-gray-400 mt-1">~13% of tracked spend · Apr 2026</p>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Waste Signals Found</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">8</p>
+          <p class="text-xs text-amber-600 mt-1 font-medium">3 High · 3 Medium · 2 Low confidence</p>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Top Waste Driver</p>
+          <p class="text-xl font-bold mt-2 text-gray-900">Model over-spec</p>
+          <p class="text-xs text-gray-400 mt-1">$4,500/mo · Opus/Sonnet where Haiku suffices</p>
+        </div>
+        <div class="card" style="background:#F0FDF4;border-color:#BBF7D0;">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Recoverable / Year</p>
+          <p class="text-3xl font-bold mt-2 text-emerald-600">$58K</p>
+          <p class="text-xs text-gray-400 mt-1">If High-confidence signals are actioned</p>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="card">
+          <h3 class="font-semibold text-gray-900 text-sm">Waste by Type</h3>
+          <p class="text-xs text-gray-400 mt-0.5 mb-4">Apr 2026 · Estimated monthly USD</p>
+          <div style="height:220px;position:relative;">
+            <canvas id="wasteDonut"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold text-gray-900 text-sm">Waste Signal Breakdown</h3>
+          <p class="text-xs text-gray-400 mt-0.5 mb-4">Monthly USD by signal · largest to smallest</p>
+          <div style="height:220px;position:relative;">
+            <canvas id="wasteBar"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Waste signals table -->
+      <div class="card p-0 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 class="font-semibold text-gray-900 text-sm">Waste Signals Log</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Apr 2026 · Sorted by estimated monthly waste (high to low) · Mock data</p>
+          </div>
+          <div class="flex gap-2">
+            <span class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded-full">● High</span>
+            <span class="text-xs px-2 py-1 bg-amber-50 text-amber-600 rounded-full">● Medium</span>
+            <span class="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded-full">● Low confidence</span>
+          </div>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left px-5 py-3">Waste Signal</th>
+              <th class="text-left px-4 py-3">Type</th>
+              <th class="text-left px-4 py-3">Component</th>
+              <th class="text-right px-4 py-3">Est. Waste / Mo</th>
+              <th class="text-left px-4 py-3">Confidence</th>
+              <th class="text-left px-5 py-3">Recommended Action</th>
+            </tr>
+          </thead>
+          <tbody id="waste-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Methodology note -->
+      <div class="card" style="background:#FFF7ED;border-color:#FED7AA;">
+        <h3 class="font-semibold text-orange-900 text-sm mb-2">How Waste Is Estimated</h3>
+        <div class="text-xs text-orange-800 space-y-1">
+          <p><strong>Model over-spec:</strong> LiteLLM call logs analyzed for prompt complexity vs. model tier. Calls matching simple patterns (short prompts, structured output) flagged if using Sonnet/Opus tier.</p>
+          <p><strong>Bot/automation calls:</strong> LiteLLM request metadata filtered for non-human callers (scheduled jobs, pipelines). Counterfactual: same call volume at Haiku pricing.</p>
+          <p><strong>Idle seats:</strong> License count cross-referenced against vendor activity data where available. Some vendors do not expose usage-level seat data.</p>
+          <p><strong>Confidence:</strong> High = BigQuery / log-backed. Medium = estimated from partial data or proxy metric. Low = qualitative signal only, not yet measurable.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- TAB: TEAM DEMAND                      -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tab-demand" class="tab-content space-y-5">
+
+      <!-- Intro callout -->
+      <div class="card" style="background:#EFF6FF;border-color:#BFDBFE;">
+        <div class="flex gap-3">
+          <span class="text-blue-400 text-lg flex-shrink-0">📊</span>
+          <div>
+            <h3 class="font-semibold text-blue-900 text-sm">Demand Layer — Why is AI spend happening?</h3>
+            <p class="text-xs text-blue-700 mt-1">The Supply layer (Component Registry) tracks <em>which</em> tools and models are used. This Demand layer maps spending to the business use-cases and outcomes driving it — by team. Without demand visibility, FinOps can track spend but cannot explain or justify it. <strong>Data completeness is ~40% today.</strong> Gaps show where demand interviews are needed.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Teams Tracked</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">6</p>
+          <p class="text-xs text-amber-600 mt-1 font-medium">of ~14 total · 8 not yet surveyed</p>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Use-Cases Mapped</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">11</p>
+          <p class="text-xs text-gray-400 mt-1">Across 4 demand categories</p>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Spend Attributed</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">61%</p>
+          <p class="text-xs text-amber-600 mt-1 font-medium">~$19K/mo unattributed to a use-case</p>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Top Demand Driver</p>
+          <p class="text-xl font-bold mt-2 text-gray-900">Productivity</p>
+          <p class="text-xs text-gray-400 mt-1">$21.3K/mo · 4 use-cases · seat-licensed</p>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="card">
+          <h3 class="font-semibold text-gray-900 text-sm">Attributed Spend by Team</h3>
+          <p class="text-xs text-gray-400 mt-0.5 mb-4">Apr 2026 · Confirmed use-cases only · USD</p>
+          <div style="height:220px;position:relative;">
+            <canvas id="demandTeamChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold text-gray-900 text-sm">Spend by Demand Type</h3>
+          <p class="text-xs text-gray-400 mt-0.5 mb-4">Apr 2026 · What is AI being used for?</p>
+          <div style="height:220px;position:relative;">
+            <canvas id="demandTypeChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Use-case table -->
+      <div class="card p-0 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 class="font-semibold text-gray-900 text-sm">Use-Case Registry — AI Demand</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Maps business use-cases to AI components and spend. Sorted by spend (confirmed first). Mock data.</p>
+          </div>
+          <div class="flex gap-2">
+            <span class="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full">● Confirmed</span>
+            <span class="text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded-full">● Partial / Piloting</span>
+            <span class="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded-full">● TBD / Not Started</span>
+          </div>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left px-5 py-3">Use-Case</th>
+              <th class="text-left px-4 py-3">Team</th>
+              <th class="text-left px-4 py-3">Demand Type</th>
+              <th class="text-left px-4 py-3">AI Component</th>
+              <th class="text-right px-4 py-3">Spend / Mo</th>
+              <th class="text-left px-4 py-3">Business Outcome</th>
+              <th class="text-left px-5 py-3">Status</th>
+            </tr>
+          </thead>
+          <tbody id="demand-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Unsurveyed teams -->
+      <div class="card">
+        <h3 class="font-semibold text-gray-900 text-sm mb-1">Teams Not Yet Surveyed</h3>
+        <p class="text-xs text-gray-400 mb-4">Each unsurveyed team may have unknown AI spend and use-cases. Recommend a 30-minute demand interview with each team lead — ask: what AI tools does your team use, what business outcome is it supporting, and what would break if this spend were cut?</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="unsurveyed-grid"></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- TAB: DATA HEALTH                     -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tab-health" class="tab-content space-y-5">
+      <div class="grid grid-cols-3 gap-4">
+        <div class="card text-center">
+          <p class="text-4xl font-bold text-emerald-600 mt-1">2</p>
+          <p class="text-sm font-medium text-gray-700 mt-2">Automated</p>
+          <p class="text-xs text-gray-400">GCP Billing → BigQuery</p>
+        </div>
+        <div class="card text-center">
+          <p class="text-4xl font-bold text-amber-500 mt-1">7</p>
+          <p class="text-sm font-medium text-gray-700 mt-2">Manual / Invoice</p>
+          <p class="text-xs text-gray-400">Google Sheets or invoice collection</p>
+        </div>
+        <div class="card text-center">
+          <p class="text-4xl font-bold text-gray-400 mt-1">2</p>
+          <p class="text-sm font-medium text-gray-700 mt-2">TBD / Blocked</p>
+          <p class="text-xs text-gray-400">Vendor or owner unconfirmed</p>
+        </div>
+      </div>
+
+      <div class="card p-0 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h3 class="font-semibold text-gray-900 text-sm">Data Completeness · Apr 2026</h3>
+          <p class="text-xs text-gray-400 mt-0.5">Tracks data availability for current period. Action items for FinOps team.</p>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left px-5 py-3">Component</th>
+              <th class="text-left px-4 py-3">Data Source</th>
+              <th class="text-left px-4 py-3">Spend Data</th>
+              <th class="text-left px-4 py-3">Budget Set</th>
+              <th class="text-left px-5 py-3">Action Required</th>
+            </tr>
+          </thead>
+          <tbody id="health-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- TAB: VALUE & ROI                     -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tab-roi" class="tab-content space-y-5">
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Cost / Eng-Hr Saved</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">$5.66</p>
+          <p class="text-xs text-gray-400 mt-1">Avg · Cursor + Claude Code · Apr 2026</p>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Hrs Saved / Eng / Week</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">2.4 hrs</p>
+          <p class="text-xs text-emerald-600 mt-1 font-medium">↑ vs 2.0 target · coding tools avg</p>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Cost / LLM Call</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">$0.0023</p>
+          <p class="text-xs text-emerald-600 mt-1 font-medium">↓ 54% below $0.005 target · LiteLLM</p>
+        </div>
+        <div class="card">
+          <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Tasks Automated / Mo</p>
+          <p class="text-3xl font-bold mt-2 text-gray-900">340</p>
+          <p class="text-xs text-emerald-600 mt-1 font-medium">↑ 70% above 200 target · n8n</p>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="card">
+          <h3 class="font-semibold text-gray-900 text-sm">Breakeven Ratio by Tool</h3>
+          <p class="text-xs text-gray-400 mt-0.5 mb-4">Value returned per $1 spent · &gt;1.0x = paying off</p>
+          <div style="height:220px;position:relative;">
+            <canvas id="roiBreakevenChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold text-gray-900 text-sm">Hours Saved / Week by Tool</h3>
+          <p class="text-xs text-gray-400 mt-0.5 mb-4">Per engineer · Target vs Actual · Apr 2026</p>
+          <div style="height:220px;position:relative;">
+            <canvas id="roiHoursChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics table -->
+      <div class="card p-0 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 class="font-semibold text-gray-900 text-sm">RoI Measurements Log</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Apr 2026 · Mock data — to be replaced with actuals from survey + BigQuery</p>
+          </div>
+          <div class="flex gap-2">
+            <span class="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full">● Above target</span>
+            <span class="text-xs px-2 py-1 bg-red-50 text-red-700 rounded-full">● Below target</span>
+          </div>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left px-5 py-3">Tool</th>
+              <th class="text-left px-4 py-3">Metric</th>
+              <th class="text-right px-4 py-3">Target</th>
+              <th class="text-right px-4 py-3">Actual</th>
+              <th class="text-left px-4 py-3">Unit</th>
+              <th class="text-left px-4 py-3">Method</th>
+              <th class="text-left px-5 py-3">Confidence</th>
+            </tr>
+          </thead>
+          <tbody id="roi-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Methodology note -->
+      <div class="card" style="background:#EFF6FF;border-color:#BFDBFE;">
+        <h3 class="font-semibold text-blue-900 text-sm mb-2">Methodology Note</h3>
+        <div class="text-xs text-blue-800 space-y-1">
+          <p><strong>Survey-based metrics</strong> (hours saved): sampled from 12 engineers across Platform &amp; Product teams, Apr 2026. n=12, ±20% margin.</p>
+          <p><strong>BigQuery-based metrics</strong> (LiteLLM): pulled from GCP billing export. High confidence — automated pipeline.</p>
+          <p><strong>Calculated metrics</strong> (cost per hr, breakeven): derived from actual spend ÷ survey hours × FTE hourly rate assumed at $85/hr.</p>
+          <p><strong>Next step:</strong> Run formal survey with 30+ engineers in May 2026. Add Devin AI usage telemetry to increase confidence from Low → Medium.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- TAB: COST ESTIMATOR                  -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tab-estimator" class="tab-content space-y-5">
+
+      <!-- Disclaimer -->
+      <div class="card" style="background:#FFFBEB;border-color:#FDE68A;">
+        <p class="text-xs text-amber-800"><strong>Prototype · Approximate pricing data.</strong> Prices shown are illustrative as of May 2026 and may not reflect current vendor rates. 1 token ≈ 0.75 words in English. Verify at vendor pricing pages before committing to budgets.</p>
+      </div>
+
+      <!-- Scenario presets -->
+      <div>
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Quick Scenarios — click to load</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <button class="preset-btn card text-left transition-all cursor-pointer" data-in="200" data-out="100" data-req="50000" data-model="claude-sonnet">
+            <p class="font-semibold text-gray-900 text-sm">Simple Chatbot</p>
+            <p class="text-xs text-gray-400 mt-1">200 in / 100 out words<br>50K requests / month</p>
+          </button>
+          <button class="preset-btn card text-left transition-all cursor-pointer" data-in="1500" data-out="500" data-req="100000" data-model="claude-sonnet">
+            <p class="font-semibold text-gray-900 text-sm">Code Assistant API</p>
+            <p class="text-xs text-gray-400 mt-1">1,500 in / 500 out words<br>100K requests / month</p>
+          </button>
+          <button class="preset-btn card text-left transition-all cursor-pointer" data-in="3000" data-out="1000" data-req="10000" data-model="claude-sonnet">
+            <p class="font-semibold text-gray-900 text-sm">Document Analysis</p>
+            <p class="text-xs text-gray-400 mt-1">3,000 in / 1,000 out words<br>10K requests / month</p>
+          </button>
+          <button class="preset-btn card text-left transition-all cursor-pointer" data-in="100" data-out="20" data-req="1000000" data-model="claude-haiku">
+            <p class="font-semibold text-gray-900 text-sm">High-Volume Classifier</p>
+            <p class="text-xs text-gray-400 mt-1">100 in / 20 out words<br>1M requests / month</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- Inputs + Results row -->
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-5">
+
+        <!-- Inputs -->
+        <div class="card md:col-span-2 space-y-4">
+          <div>
+            <h3 class="font-semibold text-gray-900 text-sm">Configure Your Use Case</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Enter average word counts — tokens calculated automatically (× 1.33)</p>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1.5">Primary Model</label>
+            <select id="est-model" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="claude-haiku">Claude Haiku · $0.25 / $1.25 per 1M tokens</option>
+              <option value="claude-sonnet" selected>Claude Sonnet · $3.00 / $15.00 per 1M tokens</option>
+              <option value="claude-opus">Claude Opus · $15.00 / $75.00 per 1M tokens</option>
+              <option value="gpt4o">GPT-4o · $5.00 / $15.00 per 1M tokens</option>
+              <option value="gpt4o-mini">GPT-4o mini · $0.15 / $0.60 per 1M tokens</option>
+              <option value="gemini-flash">Gemini 1.5 Flash · $0.35 / $1.05 per 1M tokens</option>
+              <option value="gemini-pro">Gemini 1.5 Pro · $3.50 / $10.50 per 1M tokens</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1.5">Avg Input Length</label>
+              <input id="est-in-words" type="number" value="500" min="1"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+              <p class="text-xs text-gray-400 mt-1">words → <span id="est-in-tokens" class="text-blue-600 font-medium">665 tokens</span></p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1.5">Avg Output Length</label>
+              <input id="est-out-words" type="number" value="200" min="1"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+              <p class="text-xs text-gray-400 mt-1">words → <span id="est-out-tokens" class="text-blue-600 font-medium">266 tokens</span></p>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1.5">Monthly Request Volume</label>
+            <input id="est-requests" type="number" value="100000" min="1" step="1000"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+            <p class="text-xs text-gray-400 mt-1"><span id="est-req-label">100,000 requests / month</span></p>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="md:col-span-3 flex flex-col gap-4">
+          <!-- Primary result -->
+          <div class="card flex-1" style="background:linear-gradient(135deg,#EFF6FF 0%,#F0FDF4 100%);border-color:#BFDBFE;">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-widest">Estimated Monthly Cost</p>
+            <p id="est-monthly" class="text-5xl font-bold text-blue-700 mt-2 leading-none">$0</p>
+            <p id="est-monthly-jpy" class="text-sm text-gray-400 mt-1">approx. ¥0</p>
+            <p id="est-model-label" class="text-xs text-gray-400 mt-2">Claude Sonnet · Approx. May 2026 pricing</p>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="card">
+              <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Cost / Request</p>
+              <p id="est-per-req" class="text-xl font-bold mt-2 text-gray-900">—</p>
+            </div>
+            <div class="card">
+              <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">Annual Estimate</p>
+              <p id="est-annual" class="text-xl font-bold mt-2 text-gray-900">—</p>
+              <p id="est-annual-jpy" class="text-xs text-gray-400 mt-1">—</p>
+            </div>
+            <div class="card">
+              <p class="text-xs uppercase tracking-widest text-gray-400 font-medium">vs Cheapest Model</p>
+              <p id="est-vs-cheapest" class="text-xl font-bold mt-2 text-gray-900">—</p>
+              <p id="est-vs-cheapest-label" class="text-xs text-gray-400 mt-1">—</p>
+            </div>
+          </div>
+          <!-- Insight -->
+          <div class="card" style="background:#FFF7ED;border-color:#FED7AA;">
+            <p class="text-xs text-orange-900">💡 <strong>FinOps tip:</strong> <span id="est-insight-text">Adjust the inputs above to see your cost estimate.</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Model comparison chart -->
+      <div class="card">
+        <h3 class="font-semibold text-gray-900 text-sm">Model Cost Comparison</h3>
+        <p class="text-xs text-gray-400 mt-0.5 mb-4">Monthly cost at current settings · All 7 models · USD · Selected model highlighted</p>
+        <div style="height:260px;position:relative;">
+          <canvas id="estCompareChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Full comparison table -->
+      <div class="card p-0 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 class="font-semibold text-gray-900 text-sm">Full Model Comparison</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Sorted by monthly cost · Prices approximate</p>
+          </div>
+          <span class="text-xs text-amber-600 bg-amber-50 px-3 py-1 rounded-full">Approx. May 2026 pricing</span>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left px-5 py-3">Model</th>
+              <th class="text-left px-4 py-3">Provider</th>
+              <th class="text-right px-4 py-3">Input / 1M tokens</th>
+              <th class="text-right px-4 py-3">Output / 1M tokens</th>
+              <th class="text-right px-4 py-3">Cost / Request</th>
+              <th class="text-right px-4 py-3">Monthly Cost</th>
+              <th class="text-right px-5 py-3">vs Selected</th>
+            </tr>
+          </thead>
+          <tbody id="est-compare-body"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </main>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA — mock values matching 11 known tools
+// ═══════════════════════════════════════════
+const components = [
+  { id:1,  name:"Vertex AI (GCP)",          cat:"Cloud AI",                    provider:"GCP",         useCase:"ML Platform",       team:"ML / Platform Eng",  status:"Active",               ds:"BigQuery", billing:"Usage-based", budget:15000, actual:12450 },
+  { id:2,  name:"LiteLLM Gateway",           cat:"Cloud AI / Internal Platform",provider:"Internal",    useCase:"LLM Gateway",       team:"Platform Eng",       status:"Active",               ds:"BigQuery", billing:"Usage-based", budget:5000,  actual:4820  },
+  { id:3,  name:"ChatGPT Enterprise",        cat:"SaaS AI - Productivity",      provider:"OpenAI",      useCase:"LLM / Chat",        team:"Corporate IT",       status:"Active",               ds:"Invoice",  billing:"Annual",      budget:8333,  actual:8333  },
+  { id:4,  name:"Cursor Team Plan",          cat:"SaaS AI - Developer Tool",    provider:"Cursor",      useCase:"Code Assistant",    team:"Engineering",        status:"Active",               ds:"Invoice",  billing:"Monthly",     budget:2400,  actual:2200  },
+  { id:5,  name:"Notion Enterprise",         cat:"SaaS AI - Productivity",      provider:"Notion",      useCase:"Productivity",      team:"Corporate IT",       status:"Active",               ds:"Invoice",  billing:"Annual",      budget:10000, actual:10000 },
+  { id:6,  name:"Claude Code Max Ent.",      cat:"SaaS AI - Developer Tool",    provider:"Anthropic",   useCase:"Code Assistant",    team:"Engineering",        status:"Active",               ds:"Invoice",  billing:"Monthly",     budget:5000,  actual:4750  },
+  { id:7,  name:"Devin AI",                  cat:"SaaS AI - Developer Tool",    provider:"Cognition AI",useCase:"Autonomous Agent",  team:"Engineering",        status:"Piloting",             ds:"Invoice",  billing:"Monthly",     budget:2000,  actual:1500  },
+  { id:8,  name:"Linear",                    cat:"SaaS AI - Productivity",      provider:"Linear",      useCase:"Project Mgmt",      team:"All Teams",          status:"Active",               ds:"Invoice",  billing:"Annual",      budget:3000,  actual:3000  },
+  { id:9,  name:"Genspark",                  cat:"SaaS AI - Productivity",      provider:"Genspark",    useCase:"Productivity",      team:"TBD",                status:"Piloting",             ds:"Invoice",  billing:"Monthly",     budget:500,   actual:null  },
+  { id:10, name:"n8n Enterprise",            cat:"SaaS AI - Automation",        provider:"n8n",         useCase:"Automation",        team:"Platform / Ops",     status:"Active",               ds:"Invoice",  billing:"Annual",      budget:2000,  actual:2000  },
+  { id:11, name:"Enterprise Search",         cat:"SaaS AI - Search",            provider:"TBD",         useCase:"Search",            team:"Corporate IT",       status:"Pending Confirmation", ds:"TBD",      billing:"TBD",         budget:null,  actual:null  },
+];
+
+const healthActions = {
+  1:  "None — automated via BigQuery ✓",
+  2:  "None — automated via BigQuery ✓",
+  3:  "Confirm Apr 2026 invoice with Corporate IT",
+  4:  "Collect Apr 2026 invoice from Engineering Ops",
+  5:  "Confirm Apr 2026 invoice with Corporate IT",
+  6:  "Collect Apr 2026 invoice from Engineering Ops",
+  7:  "Collect Apr 2026 invoice + confirm pilot decision",
+  8:  "Confirm Apr 2026 invoice amount",
+  9:  "⚠ No data — confirm owner team, then collect invoice",
+  10: "Collect Apr 2026 invoice from Platform / Ops",
+  11: "⚠ Confirm vendor (Gemini vs Glean), then set up billing",
+};
+
+const periods = ["Nov 2025","Dec 2025","Jan 2026","Feb 2026","Mar 2026","Apr 2026"];
+let periodIdx = 5;
+function shiftPeriod(d) {
+  const n = periodIdx + d;
+  if (n < 0 || n >= periods.length) return;
+  periodIdx = n;
+  document.getElementById("period-label").textContent = periods[periodIdx];
+}
+
+function fmt(v)  { return v == null ? "—" : "$" + v.toLocaleString(); }
+function pctStr(a, b) {
+  if (a == null || b == null || b === 0) return "—";
+  const v = ((a - b) / b * 100);
+  return (v >= 0 ? "+" : "") + v.toFixed(1) + "%";
+}
+
+// ═══════ TABS ═══════
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+// ═══════ CHARTS ═══════
+// Category donut
+new Chart(document.getElementById("catChart"), {
+  type: "doughnut",
+  data: {
+    labels: ["Cloud AI", "SaaS · Dev Tools", "SaaS · Productivity", "SaaS · Automation"],
+    datasets: [{ data: [17270, 8450, 21333, 2000],
+      backgroundColor: ["#3B82F6","#10B981","#F59E0B","#8B5CF6"],
+      borderWidth: 3, borderColor: "#fff" }]
+  },
+  options: {
+    cutout: "68%",
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: "right", labels: { font: { size: 11 }, padding: 12, usePointStyle: true } },
+      tooltip: { callbacks: { label: ctx => " $" + ctx.raw.toLocaleString() } }
+    }
+  }
+});
+
+// BvA horizontal bar
+const topTools = components.filter(c => c.budget).sort((a,b) => b.budget - a.budget).slice(0,8);
+new Chart(document.getElementById("bvaBarChart"), {
+  type: "bar",
+  data: {
+    labels: topTools.map(c => c.name.length > 20 ? c.name.slice(0,18) + "…" : c.name),
+    datasets: [
+      { label: "Budget", data: topTools.map(c => c.budget), backgroundColor: "#BFDBFE", borderRadius: 3 },
+      { label: "Actual", data: topTools.map(c => c.actual), backgroundColor: "#3B82F6", borderRadius: 3 }
+    ]
+  },
+  options: {
+    indexAxis: "y",
+    maintainAspectRatio: false,
+    plugins: { legend: { position: "top", labels: { font: { size: 11 }, usePointStyle: true } } },
+    scales: {
+      x: { grid: { color: "#F3F4F6" }, ticks: { callback: v => "$" + (v/1000).toFixed(0) + "k", font: { size: 10 } } },
+      y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+    }
+  }
+});
+
+// Trend line
+new Chart(document.getElementById("trendChart"), {
+  type: "line",
+  data: {
+    labels: periods,
+    datasets: [{
+      label: "Total AI Spend",
+      data: [42000, 38500, 44200, 46800, 47900, 49053],
+      borderColor: "#3B82F6",
+      backgroundColor: "rgba(59,130,246,0.07)",
+      borderWidth: 2.5,
+      pointBackgroundColor: "#3B82F6",
+      pointRadius: 5,
+      fill: true,
+      tension: 0.4
+    }]
+  },
+  options: {
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: "#F9FAFB" }, ticks: { font: { size: 11 } } },
+      y: {
+        beginAtZero: false,
+        grid: { color: "#F3F4F6" },
+        ticks: { callback: v => "$" + (v/1000).toFixed(0) + "k", font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ═══════ REGISTRY TABLE ═══════
+function renderRegistry() {
+  const q = document.getElementById("reg-search").value.toLowerCase();
+  const cat = document.getElementById("reg-cat").value;
+  const st  = document.getElementById("reg-status").value;
+  const rows = components.filter(c =>
+    (!q   || [c.name, c.provider, c.team, c.useCase].some(f => f.toLowerCase().includes(q))) &&
+    (!cat || c.cat === cat) &&
+    (!st  || c.status === st)
+  );
+  document.getElementById("reg-count").textContent = rows.length + " component" + (rows.length !== 1 ? "s" : "");
+  const sBadge = { "Active": "badge-active", "Piloting": "badge-piloting", "Pending Confirmation": "badge-pending" };
+  const dBadge = { "BigQuery": "badge-bq", "Invoice": "badge-invoice", "TBD": "badge-tbd" };
+  document.getElementById("reg-body").innerHTML = rows.map(c => `
+    <tr class="border-b border-gray-100 hover:bg-blue-50 transition-colors">
+      <td class="px-5 py-3">
+        <p class="font-medium text-gray-900">${c.name}</p>
+        <p class="text-xs text-gray-400">${c.useCase}</p>
+      </td>
+      <td class="px-4 py-3 text-xs text-gray-600">${c.cat}</td>
+      <td class="px-4 py-3 text-sm text-gray-700">${c.provider}</td>
+      <td class="px-4 py-3 text-sm text-gray-600">${c.team}</td>
+      <td class="px-4 py-3 text-xs text-gray-500">${c.billing}</td>
+      <td class="px-4 py-3"><span class="badge ${dBadge[c.ds] || 'badge-tbd'}">${c.ds}</span></td>
+      <td class="px-4 py-3"><span class="badge ${sBadge[c.status] || 'badge-tbd'}">${c.status}</span></td>
+      <td class="px-5 py-3 text-right font-medium text-gray-900">${fmt(c.budget)}</td>
+    </tr>`).join("");
+}
+["reg-search","reg-cat","reg-status"].forEach(id => document.getElementById(id).addEventListener(id === "reg-search" ? "input" : "change", renderRegistry));
+renderRegistry();
+
+// ═══════ BvA TABLE ═══════
+document.getElementById("bva-body").innerHTML = components.map(c => {
+  const v  = (c.budget != null && c.actual != null) ? c.actual - c.budget : null;
+  const vp = (c.budget && c.actual) ? ((c.actual - c.budget) / c.budget * 100) : null;
+  const u  = (c.budget && c.actual) ? Math.round(c.actual / c.budget * 100) : null;
+  const vc = v == null ? "var-flat" : v > 0 ? "var-over" : v < 0 ? "var-under" : "var-flat";
+  const vStr  = v  == null ? "—" : (v >= 0 ? "+" : "-") + "$" + Math.abs(v).toLocaleString();
+  const vpStr = vp == null ? "—" : (vp >= 0 ? "+" : "") + vp.toFixed(1) + "%";
+  const barColor = u == null ? "" : u > 100 ? "bg-red-500" : u > 90 ? "bg-amber-500" : "bg-emerald-500";
+  const utilHtml = u == null
+    ? '<span class="text-xs text-gray-300">—</span>'
+    : `<div class="flex items-center gap-2"><div class="progress-track"><div class="progress-fill ${barColor}" style="width:${Math.min(u,100)}%"></div></div><span class="text-xs text-gray-400">${u}%</span></div>`;
+  const rowBg = v != null && v > 0 ? "bg-red-50" : "";
+  return `
+    <tr class="border-b border-gray-100 hover:bg-gray-50 ${rowBg} transition-colors">
+      <td class="px-5 py-3 font-medium text-gray-900">${c.name}</td>
+      <td class="px-4 py-3 text-xs text-gray-500">${c.cat}</td>
+      <td class="px-4 py-3 text-right text-gray-700">${fmt(c.budget)}</td>
+      <td class="px-4 py-3 text-right text-gray-700">${fmt(c.actual)}</td>
+      <td class="px-4 py-3 text-right font-medium ${vc}">${vStr}</td>
+      <td class="px-4 py-3 text-right font-medium ${vc}">${vpStr}</td>
+      <td class="px-5 py-3">${utilHtml}</td>
+    </tr>`;
+}).join("");
+
+// ═══════ DATA HEALTH TABLE ═══════
+document.getElementById("health-body").innerHTML = components.map(c => {
+  const hasActual = c.actual != null;
+  const hasBudget = c.budget != null;
+  const isUrgent  = !hasActual || !hasBudget;
+  const dsLabel   = c.ds === "BigQuery" ? `<span class="text-emerald-600 font-medium">BigQuery (Auto)</span>` : c.ds === "TBD" ? `<span class="text-gray-400">TBD</span>` : `<span class="text-amber-600">Invoice (Manual)</span>`;
+  const spendDot  = c.ds === "TBD" ? "🔴" : !hasActual ? "🟡" : "🟢";
+  const spendTxt  = c.ds === "TBD" ? `<span class="text-gray-400">Unknown</span>` : !hasActual ? `<span class="text-amber-600 font-medium">Missing</span>` : `<span class="text-emerald-600">Complete</span>`;
+  const budgetTxt = hasBudget ? `<span class="text-emerald-600">✓ Set</span>` : `<span class="text-red-500 font-medium">✗ Missing</span>`;
+  return `
+    <tr class="border-b border-gray-100 hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-900">${c.name}</td>
+      <td class="px-4 py-3 text-sm">${dsLabel}</td>
+      <td class="px-4 py-3 text-sm">${spendDot} ${spendTxt}</td>
+      <td class="px-4 py-3 text-sm">${budgetTxt}</td>
+      <td class="px-5 py-3 text-xs ${isUrgent ? 'text-red-600 font-medium' : 'text-gray-400'}">${healthActions[c.id]}</td>
+    </tr>`;
+}).join("");
+
+// ═══════ VALUE & ROI ═══════
+const roiMetrics = [
+  { tool:"Cursor Team Plan",     metric:"Hours saved / eng / week",  target:2.0,    actual:2.5,    unit:"hrs",    method:"Survey",     conf:"Medium" },
+  { tool:"Cursor Team Plan",     metric:"Cost per eng-hr saved",     target:6.00,   actual:4.80,   unit:"USD/hr", method:"Calculated", conf:"Medium" },
+  { tool:"Cursor Team Plan",     metric:"Breakeven ratio",           target:1.0,    actual:3.2,    unit:"x",      method:"Calculated", conf:"Medium" },
+  { tool:"Claude Code Max Ent.", metric:"Hours saved / eng / week",  target:2.0,    actual:2.3,    unit:"hrs",    method:"Survey",     conf:"Medium" },
+  { tool:"Claude Code Max Ent.", metric:"Cost per eng-hr saved",     target:8.00,   actual:6.52,   unit:"USD/hr", method:"Calculated", conf:"Medium" },
+  { tool:"Claude Code Max Ent.", metric:"Breakeven ratio",           target:1.0,    actual:2.8,    unit:"x",      method:"Calculated", conf:"Medium" },
+  { tool:"LiteLLM Gateway",      metric:"Cost per LLM call",        target:0.005,  actual:0.0023, unit:"USD",    method:"BigQuery",   conf:"High"   },
+  { tool:"LiteLLM Gateway",      metric:"LLM calls / month",        target:500000, actual:680000, unit:"calls",  method:"BigQuery",   conf:"High"   },
+  { tool:"n8n Enterprise",       metric:"Tasks automated / month",  target:200,    actual:340,    unit:"tasks",  method:"System log", conf:"High"   },
+  { tool:"Devin AI",             metric:"Hours saved / eng / week", target:3.0,    actual:1.8,    unit:"hrs",    method:"Survey",     conf:"Low"    },
+  { tool:"ChatGPT Enterprise",   metric:"Hours saved / user / week",target:1.5,    actual:2.0,    unit:"hrs",    method:"Survey",     conf:"Medium" },
+];
+
+new Chart(document.getElementById("roiBreakevenChart"), {
+  type: "bar",
+  data: {
+    labels: ["n8n", "Cursor", "Claude Code", "ChatGPT", "Devin AI"],
+    datasets: [
+      { label: "Breakeven ratio (x)", data: [5.1, 3.2, 2.8, 2.4, 0.9],
+        backgroundColor: ["#10B981","#3B82F6","#6366F1","#F59E0B","#EF4444"],
+        borderRadius: 4 },
+      { type: "line", label: "Breakeven (1.0x)", data: [1, 1, 1, 1, 1],
+        borderColor: "#9CA3AF", borderDash: [4, 4], borderWidth: 1.5,
+        pointRadius: 0, fill: false }
+    ]
+  },
+  options: {
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => " " + ctx.raw + "x return per $1 spent" } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { beginAtZero: true, grid: { color: "#F3F4F6" },
+           ticks: { callback: v => v + "x", font: { size: 10 } } }
+    }
+  }
+});
+
+new Chart(document.getElementById("roiHoursChart"), {
+  type: "bar",
+  data: {
+    labels: ["Cursor", "Claude Code", "ChatGPT", "Devin AI"],
+    datasets: [
+      { label: "Target", data: [2.0, 2.0, 1.5, 3.0], backgroundColor: "#BFDBFE", borderRadius: 3 },
+      { label: "Actual", data: [2.5, 2.3, 2.0, 1.8], backgroundColor: "#3B82F6", borderRadius: 3 }
+    ]
+  },
+  options: {
+    maintainAspectRatio: false,
+    plugins: { legend: { position: "top", labels: { font: { size: 11 }, usePointStyle: true } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { beginAtZero: true, grid: { color: "#F3F4F6" },
+           ticks: { callback: v => v + " hrs", font: { size: 10 } } }
+    }
+  }
+});
+
+// ═══════ COST ESTIMATOR ═══════
+const modelPricing = [
+  { id:"claude-haiku",  name:"Claude Haiku",     provider:"Anthropic", inputPer1M:0.25,  outputPer1M:1.25,  color:"#10B981" },
+  { id:"claude-sonnet", name:"Claude Sonnet",     provider:"Anthropic", inputPer1M:3.00,  outputPer1M:15.00, color:"#3B82F6" },
+  { id:"claude-opus",   name:"Claude Opus",       provider:"Anthropic", inputPer1M:15.00, outputPer1M:75.00, color:"#8B5CF6" },
+  { id:"gpt4o",         name:"GPT-4o",            provider:"OpenAI",    inputPer1M:5.00,  outputPer1M:15.00, color:"#F59E0B" },
+  { id:"gpt4o-mini",    name:"GPT-4o mini",       provider:"OpenAI",    inputPer1M:0.15,  outputPer1M:0.60,  color:"#FBBF24" },
+  { id:"gemini-flash",  name:"Gemini 1.5 Flash",  provider:"Google",    inputPer1M:0.35,  outputPer1M:1.05,  color:"#06B6D4" },
+  { id:"gemini-pro",    name:"Gemini 1.5 Pro",    provider:"Google",    inputPer1M:3.50,  outputPer1M:10.50, color:"#0EA5E9" },
+];
+const WORDS_TO_TOKENS = 1.33;
+const JPY_RATE = 150;
+
+function calcCost(model, inputWords, outputWords, monthlyReqs) {
+  const inTok  = inputWords  * WORDS_TO_TOKENS;
+  const outTok = outputWords * WORDS_TO_TOKENS;
+  const perReq = (inTok / 1e6) * model.inputPer1M + (outTok / 1e6) * model.outputPer1M;
+  return { perReq, monthly: perReq * monthlyReqs, annual: perReq * monthlyReqs * 12, inTok, outTok };
+}
+
+function fmtUSD(v) {
+  if (v === 0) return "$0";
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (abs < 0.0001) return sign + "<$0.0001";
+  if (abs < 0.01)   return sign + "$" + abs.toFixed(5);
+  if (abs < 0.10)   return sign + "$" + abs.toFixed(4);
+  if (abs < 1)      return sign + "$" + abs.toFixed(3);
+  if (abs < 100)    return sign + "$" + abs.toFixed(2);
+  return sign + "$" + Math.round(abs).toLocaleString();
+}
+
+function fmtJPY(usd) {
+  const jpy = Math.round(usd * JPY_RATE);
+  return "approx. ¥" + jpy.toLocaleString();
+}
+
+function getInsight(selModel, inputWords, outputWords, monthlyReqs) {
+  const sel = calcCost(selModel, inputWords, outputWords, monthlyReqs);
+  const ranked = modelPricing
+    .map(m => ({ model: m, ...calcCost(m, inputWords, outputWords, monthlyReqs) }))
+    .sort((a, b) => a.monthly - b.monthly);
+  const cheapest = ranked[0];
+
+  if (selModel.id === "claude-opus") {
+    const sonnet = calcCost(modelPricing.find(m => m.id === "claude-sonnet"), inputWords, outputWords, monthlyReqs);
+    const saving = sel.monthly - sonnet.monthly;
+    return `You're using Claude Opus. Claude Sonnet handles most engineering tasks at ~1/5th the cost — ${fmtUSD(sonnet.monthly)}/month vs ${fmtUSD(sel.monthly)}/month, saving ${fmtUSD(saving * 12)}/year (${fmtJPY(saving * 12)}). Use Opus only when complex multi-step reasoning is genuinely required.`;
+  }
+  if (cheapest.model.id !== selModel.id) {
+    const saving = sel.monthly - cheapest.monthly;
+    if (saving > 50) {
+      return `${cheapest.model.name} would cost ${fmtUSD(cheapest.monthly)}/month for the same volume — saving ${fmtUSD(saving)}/month (${fmtUSD(saving * 12)}/year, ${fmtJPY(saving * 12)}). Test quality against your use case before switching.`;
+    }
+  }
+  return `Annualized run rate: ${fmtUSD(sel.annual)}/year (${fmtJPY(sel.annual)}). Include this estimate in your project proposal and set up a billing alert before going to production.`;
+}
+
+let estChart = null;
+
+function updateEstimator() {
+  const modelId    = document.getElementById("est-model").value;
+  const selModel   = modelPricing.find(m => m.id === modelId);
+  const inputWords = Math.max(1, parseInt(document.getElementById("est-in-words").value)  || 0);
+  const outWords   = Math.max(1, parseInt(document.getElementById("est-out-words").value) || 0);
+  const monthlyReq = Math.max(1, parseInt(document.getElementById("est-requests").value)  || 0);
+
+  // Token hints
+  document.getElementById("est-in-tokens").textContent  = Math.round(inputWords * WORDS_TO_TOKENS).toLocaleString() + " tokens";
+  document.getElementById("est-out-tokens").textContent = Math.round(outWords   * WORDS_TO_TOKENS).toLocaleString() + " tokens";
+  document.getElementById("est-req-label").textContent  = monthlyReq.toLocaleString() + " requests / month";
+
+  const res = calcCost(selModel, inputWords, outWords, monthlyReq);
+
+  // Primary cards
+  document.getElementById("est-monthly").textContent      = fmtUSD(res.monthly);
+  document.getElementById("est-monthly-jpy").textContent  = fmtJPY(res.monthly);
+  document.getElementById("est-per-req").textContent      = fmtUSD(res.perReq);
+  document.getElementById("est-annual").textContent       = fmtUSD(res.annual);
+  document.getElementById("est-annual-jpy").textContent   = fmtJPY(res.annual);
+  document.getElementById("est-model-label").textContent  = selModel.name + " · Approx. May 2026 pricing";
+
+  // vs cheapest
+  const ranked = modelPricing
+    .map(m => ({ model: m, ...calcCost(m, inputWords, outWords, monthlyReq) }))
+    .sort((a, b) => a.monthly - b.monthly);
+  const cheapest = ranked[0];
+  const diff = res.monthly - cheapest.monthly;
+  if (cheapest.model.id === modelId || diff < 0.01) {
+    document.getElementById("est-vs-cheapest").textContent       = "Lowest cost";
+    document.getElementById("est-vs-cheapest").className         = "text-xl font-bold mt-2 text-emerald-600";
+    document.getElementById("est-vs-cheapest-label").textContent = "cheapest option available";
+  } else {
+    document.getElementById("est-vs-cheapest").textContent       = "+" + fmtUSD(diff) + "/mo";
+    document.getElementById("est-vs-cheapest").className         = "text-xl font-bold mt-2 text-red-500";
+    document.getElementById("est-vs-cheapest-label").textContent = "more than " + cheapest.model.name;
+  }
+
+  // Insight
+  document.getElementById("est-insight-text").textContent = getInsight(selModel, inputWords, outWords, monthlyReq);
+
+  // Chart
+  const chartLabels  = ranked.map(r => r.model.name);
+  const chartData    = ranked.map(r => parseFloat(r.monthly.toFixed(4)));
+  const chartColors  = ranked.map(r => r.model.id === modelId ? r.model.color : r.model.color + "55");
+  const borderColors = ranked.map(r => r.model.id === modelId ? r.model.color : "transparent");
+  if (estChart) {
+    estChart.data.labels                          = chartLabels;
+    estChart.data.datasets[0].data               = chartData;
+    estChart.data.datasets[0].backgroundColor    = chartColors;
+    estChart.data.datasets[0].borderColor        = borderColors;
+    estChart.update();
+  }
+
+  // Comparison table
+  document.getElementById("est-compare-body").innerHTML = ranked.map(r => {
+    const isSel  = r.model.id === modelId;
+    const vsDiff = r.monthly - res.monthly;
+    const vsStr  = Math.abs(vsDiff) < 0.01 ? "Selected"
+                 : (vsDiff > 0 ? "+" : "") + fmtUSD(vsDiff) + "/mo";
+    const vsClass = Math.abs(vsDiff) < 0.01 ? "text-blue-600 font-semibold"
+                  : vsDiff > 0 ? "text-red-500" : "text-emerald-600";
+    return `
+      <tr class="border-b border-gray-100 ${isSel ? "bg-blue-50" : "hover:bg-gray-50"} transition-colors">
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${r.model.color}"></div>
+            <span class="font-medium text-gray-900">${r.model.name}</span>
+            ${isSel ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full ml-1">selected</span>' : ""}
+          </div>
+        </td>
+        <td class="px-4 py-3 text-sm text-gray-500">${r.model.provider}</td>
+        <td class="px-4 py-3 text-right text-xs text-gray-600">$${r.model.inputPer1M.toFixed(2)}</td>
+        <td class="px-4 py-3 text-right text-xs text-gray-600">$${r.model.outputPer1M.toFixed(2)}</td>
+        <td class="px-4 py-3 text-right text-gray-700">${fmtUSD(r.perReq)}</td>
+        <td class="px-4 py-3 text-right font-semibold text-gray-900">${fmtUSD(r.monthly)}</td>
+        <td class="px-5 py-3 text-right font-medium ${vsClass}">${vsStr}</td>
+      </tr>`;
+  }).join("");
+}
+
+// Init chart (hidden tab is OK — Chart.js handles it)
+estChart = new Chart(document.getElementById("estCompareChart"), {
+  type: "bar",
+  data: {
+    labels: modelPricing.map(m => m.name),
+    datasets: [{
+      label: "Monthly Cost (USD)",
+      data: modelPricing.map(() => 0),
+      backgroundColor: modelPricing.map(m => m.color + "99"),
+      borderColor: modelPricing.map(() => "transparent"),
+      borderWidth: 2,
+      borderRadius: 4
+    }]
+  },
+  options: {
+    indexAxis: "y",
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => " " + fmtUSD(ctx.raw) + " / month" } }
+    },
+    scales: {
+      x: { beginAtZero: true, grid: { color: "#F3F4F6" },
+           ticks: { callback: v => v >= 1000 ? "$" + (v/1000).toFixed(0) + "k" : "$" + v, font: { size: 10 } } },
+      y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+    }
+  }
+});
+
+// Preset scenario buttons
+document.querySelectorAll(".preset-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.getElementById("est-in-words").value  = btn.dataset.in;
+    document.getElementById("est-out-words").value = btn.dataset.out;
+    document.getElementById("est-requests").value  = btn.dataset.req;
+    document.getElementById("est-model").value     = btn.dataset.model;
+    document.querySelectorAll(".preset-btn").forEach(b => {
+      b.style.borderColor = ""; b.style.background = "";
+    });
+    btn.style.borderColor = "#3B82F6";
+    btn.style.background  = "#EFF6FF";
+    updateEstimator();
+  });
+});
+
+// Wire up inputs
+["est-model","est-in-words","est-out-words","est-requests"].forEach(id => {
+  document.getElementById(id).addEventListener(id === "est-model" ? "change" : "input", updateEstimator);
+});
+
+// Initial render
+updateEstimator();
+
+// ═══════ AI WASTE ═══════
+const wasteSignals = [
+  { signal:"Model over-spec on automated pipelines",       type:"Model Tier",    component:"LiteLLM Gateway",           waste:3100, conf:"High",   action:"Add routing rules: simple classification / summarization → Haiku by default" },
+  { signal:"Bot/automation callers using Sonnet tier",     type:"Model Tier",    component:"LiteLLM Gateway",           waste:1400, conf:"High",   action:"Identify non-human callers in logs; apply separate bot policy (Haiku tier)" },
+  { signal:"Underutilized productivity licenses",          type:"Idle Seats",    component:"Linear",                    waste: 480, conf:"Medium", action:"Harvest 30+ inactive seats at next billing cycle (~$16/seat/mo)" },
+  { signal:"Duplicate coding tool coverage",               type:"Duplication",   component:"Cursor + Claude Code + ChatGPT", waste:400, conf:"Low", action:"Survey engineers on primary tool; plan consolidation at next contract renewal" },
+  { signal:"Idle seats in autonomous coding pilot",        type:"Idle Seats",    component:"Devin AI",                  waste: 350, conf:"High",   action:"Reclaim 5 inactive seats or pause pilot; confirm decision with Engineering lead" },
+  { signal:"LLM context over-loading (long doc ingestion)",type:"Usage Pattern", component:"LiteLLM Gateway",           waste: 220, conf:"Medium", action:"Implement context compression for doc pipelines; add max-context guardrails" },
+  { signal:"Over-provisioned cloud AI quota",              type:"Infrastructure",component:"Vertex AI (GCP)",           waste: 180, conf:"Low",    action:"Validate reserved capacity vs. peak utilization; switch to on-demand if under 40% used" },
+  { signal:"Stale automation workflows (0 runs / 30 days)",type:"Usage Pattern", component:"n8n Enterprise",            waste:  70, conf:"Medium", action:"Audit 12 stale workflows; disable or archive to reduce unnecessary token consumption" },
+];
+
+const wasteTypeMap = {};
+wasteSignals.forEach(w => {
+  wasteTypeMap[w.type] = (wasteTypeMap[w.type] || 0) + w.waste;
+});
+const wasteTypeLabels = Object.keys(wasteTypeMap);
+const wasteTypeValues = wasteTypeLabels.map(k => wasteTypeMap[k]);
+const wasteTypeColors = ["#EF4444","#F59E0B","#8B5CF6","#06B6D4","#10B981"];
+
+new Chart(document.getElementById("wasteDonut"), {
+  type:"doughnut",
+  data:{
+    labels: wasteTypeLabels,
+    datasets:[{ data: wasteTypeValues,
+      backgroundColor: wasteTypeColors.slice(0, wasteTypeLabels.length),
+      borderWidth:3, borderColor:"#fff" }]
+  },
+  options:{
+    cutout:"65%", maintainAspectRatio:false,
+    plugins:{
+      legend:{ position:"right", labels:{ font:{size:11}, padding:12, usePointStyle:true } },
+      tooltip:{ callbacks:{ label: ctx => " $" + ctx.raw.toLocaleString() + "/mo" } }
+    }
+  }
+});
+
+const sortedWaste = [...wasteSignals].sort((a,b) => b.waste - a.waste);
+const wasteBarColors = sortedWaste.map(w =>
+  w.conf === "High" ? "#EF4444" : w.conf === "Medium" ? "#F59E0B" : "#9CA3AF"
+);
+new Chart(document.getElementById("wasteBar"), {
+  type:"bar",
+  data:{
+    labels: sortedWaste.map(w => w.signal.length > 36 ? w.signal.slice(0,34)+"…" : w.signal),
+    datasets:[{ data: sortedWaste.map(w => w.waste),
+      backgroundColor: wasteBarColors, borderRadius:3 }]
+  },
+  options:{
+    indexAxis:"y", maintainAspectRatio:false,
+    plugins:{ legend:{display:false},
+      tooltip:{ callbacks:{ label: ctx => " $" + ctx.raw.toLocaleString() + "/mo estimated waste" } }
+    },
+    scales:{
+      x:{ grid:{color:"#F3F4F6"}, ticks:{ callback: v => "$"+v.toLocaleString(), font:{size:10} } },
+      y:{ grid:{display:false}, ticks:{ font:{size:10} } }
+    }
+  }
+});
+
+const confBadgeColor = { High:"badge-active", Medium:"badge-piloting", Low:"badge-pending" };
+document.getElementById("waste-body").innerHTML = sortedWaste.map(w => `
+  <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+    <td class="px-5 py-3 font-medium text-gray-900">${w.signal}</td>
+    <td class="px-4 py-3 text-xs text-gray-500">${w.type}</td>
+    <td class="px-4 py-3 text-sm text-gray-600">${w.component}</td>
+    <td class="px-4 py-3 text-right font-semibold text-red-500">$${w.waste.toLocaleString()}</td>
+    <td class="px-4 py-3"><span class="badge ${confBadgeColor[w.conf]}">${w.conf}</span></td>
+    <td class="px-5 py-3 text-xs text-gray-500">${w.action}</td>
+  </tr>`).join("");
+
+// ═══════ TEAM DEMAND ═══════
+const demandUseCases = [
+  { useCase:"ML Model Training & Serving",              team:"ML / Data Science",      type:"Product Feature",        component:"Vertex AI (GCP)",          spend:12450, outcome:"Power personalization & fraud detection", status:"Confirmed"   },
+  { useCase:"Enterprise Productivity & Research",       team:"All Teams (Corp IT)",     type:"Productivity",           component:"ChatGPT Enterprise",        spend:8333,  outcome:"Reduce writing & research time",          status:"Confirmed"   },
+  { useCase:"Collaboration & Project Management",       team:"All Teams",               type:"Productivity",           component:"Notion + Linear",           spend:13000, outcome:"Improve team coordination & delivery",    status:"Confirmed"   },
+  { useCase:"Developer Code Assistance",                team:"Engineering",             type:"Developer Productivity", component:"Cursor + Claude Code",      spend:6950,  outcome:"Reduce time-to-PR; improve code quality", status:"Confirmed"   },
+  { useCase:"Internal LLM Gateway (AI apps API)",       team:"Platform Engineering",    type:"Internal Platform",      component:"LiteLLM Gateway",           spend:4820,  outcome:"Enable all teams to build AI features",   status:"Confirmed"   },
+  { useCase:"Workflow Automation",                      team:"Operations / Platform",   type:"Automation",             component:"n8n Enterprise",            spend:2000,  outcome:"Automate routine manual ops tasks",       status:"Confirmed"   },
+  { useCase:"Autonomous Coding Agent (pilot)",          team:"Engineering",             type:"Developer Productivity", component:"Devin AI",                  spend:1500,  outcome:"Offload repetitive coding tasks",         status:"Piloting"    },
+  { useCase:"AI-Powered Product Features",              team:"Product Engineering",     type:"Product Feature",        component:"LiteLLM (sub-projects)",    spend:null,  outcome:"Improve conversion & user experience",    status:"Partial"     },
+  { useCase:"Enterprise AI Search",                     team:"Corporate IT",            type:"Productivity",           component:"Enterprise Search",         spend:null,  outcome:"Faster internal knowledge retrieval",     status:"TBD"         },
+  { useCase:"AI-Assisted Design & Content",             team:"Design / Brand",          type:"Creative",               component:"TBD",                       spend:null,  outcome:"Faster content & asset production",      status:"Not Started" },
+  { useCase:"Productivity AI (unconfirmed owner)",      team:"Unknown",                 type:"Productivity",           component:"Genspark",                  spend:null,  outcome:"Unknown — owner not confirmed",           status:"TBD"         },
+];
+
+const demandTeams = {};
+const demandTypes = {};
+demandUseCases.forEach(d => {
+  if (d.spend) {
+    const t = d.team.split(" (")[0].split(" / ")[0];
+    demandTeams[t] = (demandTeams[t] || 0) + d.spend;
+    demandTypes[d.type] = (demandTypes[d.type] || 0) + d.spend;
+  }
+});
+
+new Chart(document.getElementById("demandTeamChart"), {
+  type:"bar",
+  data:{
+    labels: Object.keys(demandTeams),
+    datasets:[{ data: Object.values(demandTeams),
+      backgroundColor:["#3B82F6","#10B981","#F59E0B","#8B5CF6","#06B6D4","#EF4444"],
+      borderRadius:4 }]
+  },
+  options:{
+    indexAxis:"y", maintainAspectRatio:false,
+    plugins:{ legend:{display:false},
+      tooltip:{ callbacks:{ label: ctx => " $" + ctx.raw.toLocaleString() + "/mo" } }
+    },
+    scales:{
+      x:{ grid:{color:"#F3F4F6"}, ticks:{ callback: v => "$"+(v/1000).toFixed(0)+"k", font:{size:10} } },
+      y:{ grid:{display:false}, ticks:{ font:{size:10} } }
+    }
+  }
+});
+
+new Chart(document.getElementById("demandTypeChart"), {
+  type:"doughnut",
+  data:{
+    labels: Object.keys(demandTypes),
+    datasets:[{ data: Object.values(demandTypes),
+      backgroundColor:["#F59E0B","#3B82F6","#10B981","#8B5CF6","#06B6D4"],
+      borderWidth:3, borderColor:"#fff" }]
+  },
+  options:{
+    cutout:"65%", maintainAspectRatio:false,
+    plugins:{
+      legend:{ position:"right", labels:{ font:{size:11}, padding:10, usePointStyle:true } },
+      tooltip:{ callbacks:{ label: ctx => " $" + ctx.raw.toLocaleString() + "/mo" } }
+    }
+  }
+});
+
+const demandStatusClass = {
+  "Confirmed":"badge-active", "Piloting":"badge-piloting",
+  "Partial":"badge-piloting", "TBD":"badge-pending", "Not Started":"badge-tbd"
+};
+const sortedDemand = [...demandUseCases].sort((a,b) => {
+  if (a.spend && b.spend) return b.spend - a.spend;
+  if (a.spend) return -1;
+  if (b.spend) return 1;
+  return 0;
+});
+document.getElementById("demand-body").innerHTML = sortedDemand.map(d => `
+  <tr class="border-b border-gray-100 hover:bg-blue-50 transition-colors">
+    <td class="px-5 py-3 font-medium text-gray-900">${d.useCase}</td>
+    <td class="px-4 py-3 text-xs text-gray-600">${d.team}</td>
+    <td class="px-4 py-3 text-xs text-gray-500">${d.type}</td>
+    <td class="px-4 py-3 text-sm text-gray-600">${d.component}</td>
+    <td class="px-4 py-3 text-right font-medium ${d.spend ? "text-gray-900" : "text-gray-300"}">${d.spend ? "$"+d.spend.toLocaleString() : "—"}</td>
+    <td class="px-4 py-3 text-xs text-gray-500">${d.outcome}</td>
+    <td class="px-5 py-3"><span class="badge ${demandStatusClass[d.status] || "badge-tbd"}">${d.status}</span></td>
+  </tr>`).join("");
+
+const unsurveyed = [
+  "Customer Support Eng","Security Engineering","Data Platform","Finance / Analytics",
+  "HR Tech","Mobile Engineering","Growth / Marketing","Quality Engineering"
+];
+document.getElementById("unsurveyed-grid").innerHTML = unsurveyed.map(t => `
+  <div class="border border-dashed border-gray-300 rounded-xl p-4 text-center">
+    <p class="text-sm font-medium text-gray-600">${t}</p>
+    <p class="text-xs text-gray-400 mt-1">Survey not started</p>
+    <span class="badge badge-tbd mt-2 inline-block">TBD</span>
+  </div>`).join("");
+
+document.getElementById("roi-body").innerHTML = roiMetrics.map(m => {
+  const isAbove = m.actual >= m.target;
+  const confBadge = m.conf === "High" ? "badge-active" : m.conf === "Medium" ? "badge-piloting" : "badge-pending";
+  const fmtVal = v => m.unit === "USD" ? "$" + v : m.unit === "USD/hr" ? "$" + v : v.toLocaleString();
+  const arrow = isAbove ? '<span class="text-emerald-600 font-bold">↑</span>' : '<span class="text-red-500 font-bold">↓</span>';
+  return `
+    <tr class="border-b border-gray-100 hover:bg-gray-50 ${!isAbove ? 'bg-red-50' : ''} transition-colors">
+      <td class="px-5 py-3 font-medium text-gray-900">${m.tool}</td>
+      <td class="px-4 py-3 text-gray-600">${m.metric}</td>
+      <td class="px-4 py-3 text-right text-gray-400">${fmtVal(m.target)}</td>
+      <td class="px-4 py-3 text-right font-semibold text-gray-900">${arrow} ${fmtVal(m.actual)}</td>
+      <td class="px-4 py-3 text-xs text-gray-500">${m.unit}</td>
+      <td class="px-4 py-3 text-xs text-gray-500">${m.method}</td>
+      <td class="px-5 py-3"><span class="badge ${confBadge}">${m.conf}</span></td>
+    </tr>`;
+}).join("");
+</script>
+</body>
+</html>
