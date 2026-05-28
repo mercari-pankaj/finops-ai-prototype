@@ -19,6 +19,7 @@
     .badge-bq        { background: #DBEAFE; color: #1E40AF; }
     .badge-invoice   { background: #FEF3C7; color: #92400E; }
     .badge-tbd       { background: #F3F4F6; color: #9CA3AF; }
+    .badge-terminating { background: #FEE2E2; color: #991B1B; }
     .var-under { color: #059669; }
     .var-over  { color: #DC2626; }
     .var-flat  { color: #6B7280; }
@@ -802,7 +803,7 @@
 const components = [
   { id:1,  name:"Vertex AI (GCP)",          cat:"Cloud AI",                    provider:"GCP",         useCase:"ML Platform",       team:"ML / Platform Eng",  status:"Active",               ds:"BigQuery", billing:"Usage-based", budget:15000, actual:12450 },
   { id:2,  name:"LiteLLM Gateway",           cat:"Cloud AI / Internal Platform",provider:"Internal",    useCase:"LLM Gateway",       team:"Platform Eng",       status:"Active",               ds:"BigQuery", billing:"Usage-based", budget:5000,  actual:4820  },
-  { id:3,  name:"ChatGPT Enterprise",        cat:"SaaS AI - Productivity",      provider:"OpenAI",      useCase:"LLM / Chat",        team:"Corporate IT",       status:"Active",               ds:"Invoice",  billing:"Annual",      budget:8333,  actual:8333  },
+  { id:3,  name:"ChatGPT Enterprise",        cat:"SaaS AI - Productivity",      provider:"OpenAI",      useCase:"LLM / Chat",        team:"Corporate IT",       status:"Terminating Jun 2026", ds:"Invoice",  billing:"Annual",      budget:8333,  actual:8333  },
   { id:4,  name:"Cursor Team Plan",          cat:"SaaS AI - Developer Tool",    provider:"Cursor",      useCase:"Code Assistant",    team:"Engineering",        status:"Active",               ds:"Invoice",  billing:"Monthly",     budget:2400,  actual:2200  },
   { id:5,  name:"Notion Enterprise",         cat:"SaaS AI - Productivity",      provider:"Notion",      useCase:"Productivity",      team:"Corporate IT",       status:"Active",               ds:"Invoice",  billing:"Annual",      budget:10000, actual:10000 },
   { id:6,  name:"Claude Code Max Ent.",      cat:"SaaS AI - Developer Tool",    provider:"Anthropic",   useCase:"Code Assistant",    team:"Engineering",        status:"Active",               ds:"Invoice",  billing:"Monthly",     budget:5000,  actual:4750  },
@@ -816,7 +817,7 @@ const components = [
 const healthActions = {
   1:  "None — automated via BigQuery ✓",
   2:  "None — automated via BigQuery ✓",
-  3:  "Confirm Apr 2026 invoice with Corporate IT",
+  3:  "⚠ Contract terminating Jun 30, 2026 — confirm last invoice; plan migration or replacement",
   4:  "Collect Apr 2026 invoice from Engineering Ops",
   5:  "Confirm Apr 2026 invoice with Corporate IT",
   6:  "Collect Apr 2026 invoice from Engineering Ops",
@@ -937,7 +938,7 @@ function renderRegistry() {
     (!st  || c.status === st)
   );
   document.getElementById("reg-count").textContent = rows.length + " tool" + (rows.length !== 1 ? "s" : "");
-  const sBadge = { "Active": "badge-active", "Piloting": "badge-piloting", "Pending Confirmation": "badge-pending" };
+  const sBadge = { "Active": "badge-active", "Piloting": "badge-piloting", "Pending Confirmation": "badge-pending", "Terminating Jun 2026": "badge-terminating" };
   const dBadge = { "BigQuery": "badge-bq", "Invoice": "badge-invoice", "TBD": "badge-tbd" };
   document.getElementById("reg-body").innerHTML = rows.map(c => `
     <tr class="border-b border-gray-100 hover:bg-blue-50 transition-colors">
@@ -1013,13 +1014,13 @@ const roiMetrics = [
   { tool:"LiteLLM Gateway",      metric:"LLM calls / month",        target:500000, actual:680000, unit:"calls",  method:"BigQuery",   conf:"High"   },
   { tool:"n8n Enterprise",       metric:"Tasks automated / month",  target:200,    actual:340,    unit:"tasks",  method:"System log", conf:"High"   },
   { tool:"Devin AI",             metric:"Hours saved / eng / week", target:3.0,    actual:1.8,    unit:"hrs",    method:"Survey",     conf:"Low"    },
-  { tool:"ChatGPT Enterprise",   metric:"Hours saved / user / week",target:1.5,    actual:2.0,    unit:"hrs",    method:"Survey",     conf:"Medium" },
+  { tool:"ChatGPT Enterprise ⚠",  metric:"Hours saved / user / week",target:1.5,    actual:2.0,    unit:"hrs",    method:"Survey",     conf:"Medium" },
 ];
 
 new Chart(document.getElementById("roiBreakevenChart"), {
   type: "bar",
   data: {
-    labels: ["n8n", "Cursor", "Claude Code", "ChatGPT", "Devin AI"],
+    labels: ["n8n", "Cursor", "Claude Code", "ChatGPT*", "Devin AI"],
     datasets: [
       { label: "Breakeven ratio (x)", data: [5.1, 3.2, 2.8, 2.4, 0.9],
         backgroundColor: ["#10B981","#3B82F6","#6366F1","#F59E0B","#EF4444"],
@@ -1046,7 +1047,7 @@ new Chart(document.getElementById("roiBreakevenChart"), {
 new Chart(document.getElementById("roiHoursChart"), {
   type: "bar",
   data: {
-    labels: ["Cursor", "Claude Code", "ChatGPT", "Devin AI"],
+    labels: ["Cursor", "Claude Code", "ChatGPT*", "Devin AI"],
     datasets: [
       { label: "Target", data: [2.0, 2.0, 1.5, 3.0], backgroundColor: "#BFDBFE", borderRadius: 3 },
       { label: "Actual", data: [2.5, 2.3, 2.0, 1.8], backgroundColor: "#3B82F6", borderRadius: 3 }
@@ -1262,7 +1263,7 @@ const wasteSignals = [
   { signal:"Model over-spec on automated pipelines",       type:"Model Tier",    component:"LiteLLM Gateway",           waste:3100, conf:"High",   action:"Add routing rules: simple classification / summarization → Haiku by default" },
   { signal:"Bot/automation callers using Sonnet tier",     type:"Model Tier",    component:"LiteLLM Gateway",           waste:1400, conf:"High",   action:"Identify non-human callers in logs; apply separate bot policy (Haiku tier)" },
   { signal:"Underutilized productivity licenses",          type:"Idle Seats",    component:"Linear",                    waste: 480, conf:"Medium", action:"Harvest 30+ inactive seats at next billing cycle (~$16/seat/mo)" },
-  { signal:"Duplicate coding tool coverage",               type:"Duplication",   component:"Cursor + Claude Code + ChatGPT", waste:400, conf:"Low", action:"Survey engineers on primary tool; plan consolidation at next contract renewal" },
+  { signal:"Duplicate coding tool coverage",               type:"Duplication",   component:"Cursor + Claude Code",          waste:400, conf:"Low", action:"Survey engineers on primary tool; plan consolidation — ChatGPT Enterprise exiting Jun 2026 reduces overlap" },
   { signal:"Idle seats in autonomous coding pilot",        type:"Idle Seats",    component:"Devin AI",                  waste: 350, conf:"High",   action:"Reclaim 5 inactive seats or pause pilot; confirm decision with Engineering lead" },
   { signal:"LLM context over-loading (long doc ingestion)",type:"Usage Pattern", component:"LiteLLM Gateway",           waste: 220, conf:"Medium", action:"Implement context compression for doc pipelines; add max-context guardrails" },
   { signal:"Over-provisioned cloud AI quota",              type:"Infrastructure",component:"Vertex AI (GCP)",           waste: 180, conf:"Low",    action:"Validate reserved capacity vs. peak utilization; switch to on-demand if under 40% used" },
@@ -1331,7 +1332,7 @@ document.getElementById("waste-body").innerHTML = sortedWaste.map(w => `
 // ═══════ TEAM DEMAND ═══════
 const demandUseCases = [
   { useCase:"ML Model Training & Serving",              team:"ML / Data Science",      type:"Product Feature",        component:"Vertex AI (GCP)",          spend:12450, outcome:"Power personalization & fraud detection", status:"Confirmed"   },
-  { useCase:"Enterprise Productivity & Research",       team:"All Teams (Corp IT)",     type:"Productivity",           component:"ChatGPT Enterprise",        spend:8333,  outcome:"Reduce writing & research time",          status:"Confirmed"   },
+  { useCase:"Enterprise Productivity & Research",       team:"All Teams (Corp IT)",     type:"Productivity",           component:"ChatGPT Enterprise",        spend:8333,  outcome:"Reduce writing & research time",          status:"Terminating Jun 2026" },
   { useCase:"Collaboration & Project Management",       team:"All Teams",               type:"Productivity",           component:"Notion + Linear",           spend:13000, outcome:"Improve team coordination & delivery",    status:"Confirmed"   },
   { useCase:"Developer Code Assistance",                team:"Engineering",             type:"Developer Productivity", component:"Cursor + Claude Code",      spend:6950,  outcome:"Reduce time-to-PR; improve code quality", status:"Confirmed"   },
   { useCase:"Internal LLM Gateway (AI apps API)",       team:"Platform Engineering",    type:"Internal Platform",      component:"LiteLLM Gateway",           spend:4820,  outcome:"Enable all teams to build AI features",   status:"Confirmed"   },
@@ -1392,7 +1393,8 @@ new Chart(document.getElementById("demandTypeChart"), {
 
 const demandStatusClass = {
   "Confirmed":"badge-active", "Piloting":"badge-piloting",
-  "Partial":"badge-piloting", "TBD":"badge-pending", "Not Started":"badge-tbd"
+  "Partial":"badge-piloting", "TBD":"badge-pending", "Not Started":"badge-tbd",
+  "Terminating Jun 2026":"badge-terminating"
 };
 const sortedDemand = [...demandUseCases].sort((a,b) => {
   if (a.spend && b.spend) return b.spend - a.spend;
