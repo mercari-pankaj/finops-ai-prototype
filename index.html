@@ -60,8 +60,9 @@
       <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="bva">AI Spend</button>
       <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="waste">AI Waste</button>
       <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="roi">AI Value</button>
-      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="estimator">Cost Estimator</button>
-      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="health">AI Constraints</button>
+      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="health">Data Completeness</button>
+      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="constraints">AI Constraints</button>
+      <button class="tab-btn py-3 text-sm text-gray-500 hover:text-gray-900" data-tab="estimator">AI Cost Estimator</button>
     </div>
   </nav>
 
@@ -485,13 +486,13 @@
     <!-- ══════════════════════════════════════ -->
     <div id="tab-health" class="tab-content space-y-5">
 
-      <!-- AI Constraints intro -->
-      <div class="card" style="background:#F5F3FF;border-color:#DDD6FE;">
+      <!-- Data Completeness intro -->
+      <div class="card" style="background:#ECFDF5;border-color:#A7F3D0;">
         <div class="flex gap-3">
-          <span class="text-purple-400 text-lg flex-shrink-0">🔒</span>
+          <span class="text-emerald-500 text-lg flex-shrink-0">📊</span>
           <div>
-            <h3 class="font-semibold text-purple-900 text-sm">AI Constraints — What is limiting visibility and control?</h3>
-            <p class="text-xs text-purple-700 mt-1">This tab tracks two types of constraints: <strong>Data Constraints</strong> (gaps in what we can measure today — missing invoices, unconfirmed vendors, manual collection blockers) and <strong>Governance Constraints</strong> (usage ceilings, model-tier policies, and engineering guardrails — coming in FY27 once the Platform Engineering cost data layer is live).</p>
+            <h3 class="font-semibold text-emerald-900 text-sm">Data Completeness — How complete is our AI financial data?</h3>
+            <p class="text-xs text-emerald-800 mt-1">Tracks the availability and quality of spend data across all AI components. Identifies gaps — missing invoices, unconfirmed vendors, manual collection blockers — that limit the accuracy of AI Spend, BvA, and Waste analysis.</p>
           </div>
         </div>
       </div>
@@ -533,33 +534,53 @@
         </table>
       </div>
 
-      <!-- Governance & Guardrails -->
+    </div>
+
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- TAB: AI CONSTRAINTS                  -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tab-constraints" class="tab-content space-y-5">
+
+      <!-- AI Constraints intro -->
       <div class="card" style="background:#F5F3FF;border-color:#DDD6FE;">
-        <div class="flex items-start gap-3">
-          <span class="text-purple-400 text-xl flex-shrink-0">🏛</span>
-          <div class="w-full">
-            <h3 class="font-semibold text-purple-900 text-sm mb-1">Governance & Guardrails — Coming in FY27</h3>
-            <p class="text-xs text-purple-700 mb-4">This section will surface active usage policies, budget ceilings, and guardrail enforcement status — once Platform Engineering's Cost Visualization initiative and Engineering Guardrails ship their data layer. The data contract between their cost telemetry and this FinOps surface is the key prerequisite.</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div class="bg-white rounded-xl p-4 border border-purple-100">
-                <p class="text-xs font-semibold text-gray-700 mb-1">Usage Ceilings</p>
-                <p class="text-xs text-gray-400">Per-team monthly token budgets and hard caps on model tiers</p>
-                <span class="badge badge-tbd mt-3 inline-block">Not enforced yet</span>
-              </div>
-              <div class="bg-white rounded-xl p-4 border border-purple-100">
-                <p class="text-xs font-semibold text-gray-700 mb-1">Model-Tier Policy</p>
-                <p class="text-xs text-gray-400">Org-wide rules on which workloads may use which model tiers (e.g. no Opus for batch jobs)</p>
-                <span class="badge badge-tbd mt-3 inline-block">Not enforced yet</span>
-              </div>
-              <div class="bg-white rounded-xl p-4 border border-purple-100">
-                <p class="text-xs font-semibold text-gray-700 mb-1">Engineering Guardrails</p>
-                <p class="text-xs text-gray-400">Per-PDLC-phase cost checks; depends on Platform Eng Cost Visualization initiative</p>
-                <span class="badge badge-tbd mt-3 inline-block">FY27 dependency</span>
-              </div>
-            </div>
+        <div class="flex gap-3">
+          <span class="text-purple-400 text-lg flex-shrink-0">🏛</span>
+          <div>
+            <h3 class="font-semibold text-purple-900 text-sm">AI Constraints — Governance & Guardrails</h3>
+            <p class="text-xs text-purple-700 mt-1">Surfaces active usage policies, budget ceilings, and guardrail enforcement status across all AI tools. This capability is planned for <strong>FY27</strong>, pending the Platform Engineering Cost Visualization initiative delivering its cost telemetry data layer — the key prerequisite for automated constraint enforcement.</p>
           </div>
         </div>
       </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="card" style="background:#F5F3FF;border-color:#DDD6FE;">
+          <p class="text-sm font-semibold text-purple-900 mb-1">🚦 Usage Ceilings</p>
+          <p class="text-xs text-gray-500 mb-3">Per-team monthly token budgets and hard caps on model tiers</p>
+          <span class="badge badge-tbd">Not enforced yet</span>
+        </div>
+        <div class="card" style="background:#F5F3FF;border-color:#DDD6FE;">
+          <p class="text-sm font-semibold text-purple-900 mb-1">🎯 Model-Tier Policy</p>
+          <p class="text-xs text-gray-500 mb-3">Org-wide rules on which workloads may use which model tiers (e.g. no Opus for batch jobs)</p>
+          <span class="badge badge-tbd">Not enforced yet</span>
+        </div>
+        <div class="card" style="background:#F5F3FF;border-color:#DDD6FE;">
+          <p class="text-sm font-semibold text-purple-900 mb-1">🔧 Engineering Guardrails</p>
+          <p class="text-xs text-gray-500 mb-3">Per-PDLC-phase cost checks; depends on Platform Engineering Cost Visualization initiative</p>
+          <span class="badge badge-tbd">FY27 dependency</span>
+        </div>
+      </div>
+
+      <div class="card" style="background:#FEF3C7;border-color:#FDE68A;">
+        <div class="flex gap-3">
+          <span class="text-amber-500 text-lg flex-shrink-0">⏳</span>
+          <div>
+            <p class="text-xs font-semibold text-amber-900">Prerequisite: Platform Engineering Cost Visualization initiative</p>
+            <p class="text-xs text-amber-800 mt-1">Once the cost telemetry data contract between Platform Engineering and the FinOps reporting surface is established, this tab will surface live constraint status, policy violations, and budget ceiling utilization per team.</p>
+          </div>
+        </div>
+      </div>
+
     </div>
 
 
